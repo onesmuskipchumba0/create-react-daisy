@@ -1,0 +1,16 @@
+{
+  "name": "create-react-daisy",
+  "version": "1.0.0",
+  "description": "CLI to create React projects with Tailwind CSS and DaisyUI preconfigured",
+  "main": "index.js",
+  "bin": {
+    "create-react-daisy": "./bin/cli.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "prompts": "^2.4.2",
+    "fs-extra": "^11.1.1",
+    "execa": "^8.0.1"
+  }
+}
