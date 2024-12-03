@@ -41,6 +41,16 @@ async function main() {
           { title: 'Blog - Blog layout with articles', value: 'blog' }
         ],
         initial: 0
+      },
+      {
+        type: 'multiselect',
+        name: 'additionalPackages',
+        message: 'Select additional packages to install:',
+        choices: [
+          { title: 'React Icons', value: 'react-icons' },
+          { title: 'React Router DOM', value: 'react-router-dom' }
+        ],
+        hint: 'Space to select, Enter to confirm'
       }
     ]);
 
@@ -52,11 +62,15 @@ async function main() {
     const projectName = response.projectName;
     const template = response.language;
     const uiTemplate = response.template;
+    const additionalPackages = response.additionalPackages || [];
     const projectPath = path.join(process.cwd(), projectName);
 
     console.log(chalk.blue(`\nCreating a new React app in ${chalk.green(projectPath)}`));
     console.log(chalk.blue(`Language: ${chalk.green(template === 'react' ? 'JavaScript' : 'TypeScript')}`));
     console.log(chalk.blue(`Template: ${chalk.green(uiTemplate)}`));
+    if (additionalPackages.length > 0) {
+      console.log(chalk.blue(`Additional Packages: ${chalk.green(additionalPackages.join(', '))}`));
+    }
 
     // Create project directory
     await fs.ensureDir(projectPath);
@@ -81,6 +95,15 @@ async function main() {
       cwd: projectPath,
       stdio: 'inherit'
     });
+
+    // Install additional selected packages
+    if (additionalPackages.length > 0) {
+      console.log('\nInstalling additional packages...');
+      await execa('npm', ['install', ...additionalPackages], {
+        cwd: projectPath,
+        stdio: 'inherit'
+      });
+    }
 
     // Create Tailwind config
     const tailwindConfig = `/** @type {import('tailwindcss').Config} */
@@ -117,8 +140,8 @@ export default {
 
     await fs.writeFile(path.join(projectPath, 'src/index.css'), indexCss);
 
-    // Update App.jsx with the selected template
-    const templateContent = getTemplateContent(uiTemplate, template === 'react-ts');
+    // Update App code with imports if packages are selected
+    const templateContent = getTemplateContent(uiTemplate, template === 'react-ts', additionalPackages);
     const fileExtension = template === 'react-ts' ? 'tsx' : 'jsx';
     
     await fs.writeFile(path.join(projectPath, `src/App.${fileExtension}`), templateContent);
@@ -142,25 +165,37 @@ export default {
   }
 }
 
-function getTemplateContent(template, isTs) {
+function getTemplateContent(template, isTs, packages = []) {
+  const hasIcons = packages.includes('react-icons');
+  const hasRouter = packages.includes('react-router-dom');
+
+  // Add imports based on selected packages
+  let imports = '';
+  if (hasIcons) {
+    imports += "import { FaHome, FaUser, FaCog } from 'react-icons/fa';\n";
+  }
+  if (hasRouter) {
+    imports += "import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';\n";
+  }
+
   switch (template) {
     case 'basic':
-      return basicTemplate(isTs);
+      return basicTemplate(isTs, hasIcons, hasRouter);
     case 'dashboard':
-      return dashboardTemplate(isTs);
+      return dashboardTemplate(isTs, hasIcons, hasRouter);
     case 'landing':
-      return landingTemplate(isTs);
+      return landingTemplate(isTs, hasIcons, hasRouter);
     case 'ecommerce':
-      return ecommerceTemplate(isTs);
+      return ecommerceTemplate(isTs, hasIcons, hasRouter);
     case 'blog':
-      return blogTemplate(isTs);
+      return blogTemplate(isTs, hasIcons, hasRouter);
     default:
       throw new Error(`Unknown template: ${template}`);
   }
 }
 
-function basicTemplate(isTs) {
-  return `
+function basicTemplate(isTs, hasIcons, hasRouter) {
+  let template = `
 function App() {
   return (
     <div className="min-h-screen bg-base-200">
@@ -179,10 +214,48 @@ function App() {
 
 export default App
 `;
+
+  if (hasIcons) {
+    template = `
+${imports}
+${template}
+`;
+  }
+
+  if (hasRouter) {
+    template = `
+${imports}
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={
+          <div className="min-h-screen bg-base-200">
+            <div className="hero min-h-screen">
+              <div className="hero-content text-center">
+                <div className="max-w-md">
+                  <h1 className="text-5xl font-bold">Hello World</h1>
+                  <p className="py-6">This is a basic React + Vite project with Tailwind CSS and DaisyUI preconfigured.</p>
+                  <button className="btn btn-primary">Get Started</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        } />
+      </Routes>
+    </Router>
+  )
 }
 
-function dashboardTemplate(isTs) {
-  return `
+export default App
+`;
+  }
+
+  return template;
+}
+
+function dashboardTemplate(isTs, hasIcons, hasRouter) {
+  let template = `
 function App() {
   return (
     <div className="min-h-screen bg-base-200">
@@ -233,10 +306,80 @@ function App() {
 
 export default App
 `;
+
+  if (hasIcons) {
+    template = `
+${imports}
+${template}
+`;
+  }
+
+  if (hasRouter) {
+    template = `
+${imports}
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={
+          <div className="min-h-screen bg-base-200">
+            <div className="drawer drawer-mobile">
+              <input id="my-drawer-2" type="checkbox" className="drawer-toggle" />
+              <div className="drawer-content">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold">Dashboard</h2>
+                  <label htmlFor="my-drawer-2" className="btn btn-square btn-ghost">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-6 h-6 stroke-current">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="card bg-base-100 shadow-xl">
+                    <div className="card-body">
+                      <h2 className="card-title">Card title!</h2>
+                      <p>If a dog chases his tail, he will be faster than a dog chasing his tail.</p>
+                    </div>
+                  </div>
+                  <div className="card bg-base-100 shadow-xl">
+                    <div className="card-body">
+                      <h2 className="card-title">Card title!</h2>
+                      <p>If a dog chases his tail, he will be faster than a dog chasing his tail.</p>
+                    </div>
+                  </div>
+                  <div className="card bg-base-100 shadow-xl">
+                    <div className="card-body">
+                      <h2 className="card-title">Card title!</h2>
+                      <p>If a dog chases his tail, he will be faster than a dog chasing his tail.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="drawer-side">
+                <label htmlFor="my-drawer-2" className="drawer-overlay"></label>
+                <ul className="menu p-4 overflow-y-auto w-80 bg-base-100 text-base-content">
+                  <li><a>Item 1</a></li>
+                  <li><a>Item 2</a></li>
+                  <li><a>Item 3</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        } />
+      </Routes>
+    </Router>
+  )
 }
 
-function landingTemplate(isTs) {
-  return `
+export default App
+`;
+  }
+
+  return template;
+}
+
+function landingTemplate(isTs, hasIcons, hasRouter) {
+  let template = `
 function App() {
   return (
     <div className="min-h-screen bg-base-200">
@@ -255,10 +398,48 @@ function App() {
 
 export default App
 `;
+
+  if (hasIcons) {
+    template = `
+${imports}
+${template}
+`;
+  }
+
+  if (hasRouter) {
+    template = `
+${imports}
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={
+          <div className="min-h-screen bg-base-200">
+            <div className="hero min-h-screen">
+              <div className="hero-content text-center">
+                <div className="max-w-md">
+                  <h1 className="text-5xl font-bold">Landing Page</h1>
+                  <p className="py-6">This is a modern landing page template.</p>
+                  <button className="btn btn-primary">Get Started</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        } />
+      </Routes>
+    </Router>
+  )
 }
 
-function ecommerceTemplate(isTs) {
-  return `
+export default App
+`;
+  }
+
+  return template;
+}
+
+function ecommerceTemplate(isTs, hasIcons, hasRouter) {
+  let template = `
 function App() {
   return (
     <div className="min-h-screen bg-base-200">
@@ -277,10 +458,48 @@ function App() {
 
 export default App
 `;
+
+  if (hasIcons) {
+    template = `
+${imports}
+${template}
+`;
+  }
+
+  if (hasRouter) {
+    template = `
+${imports}
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={
+          <div className="min-h-screen bg-base-200">
+            <div className="hero min-h-screen">
+              <div className="hero-content text-center">
+                <div className="max-w-md">
+                  <h1 className="text-5xl font-bold">E-commerce</h1>
+                  <p className="py-6">This is an e-commerce template.</p>
+                  <button className="btn btn-primary">Get Started</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        } />
+      </Routes>
+    </Router>
+  )
 }
 
-function blogTemplate(isTs) {
-  return `
+export default App
+`;
+  }
+
+  return template;
+}
+
+function blogTemplate(isTs, hasIcons, hasRouter) {
+  let template = `
 function App() {
   return (
     <div className="min-h-screen bg-base-200">
@@ -299,6 +518,44 @@ function App() {
 
 export default App
 `;
+
+  if (hasIcons) {
+    template = `
+${imports}
+${template}
+`;
+  }
+
+  if (hasRouter) {
+    template = `
+${imports}
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={
+          <div className="min-h-screen bg-base-200">
+            <div className="hero min-h-screen">
+              <div className="hero-content text-center">
+                <div className="max-w-md">
+                  <h1 className="text-5xl font-bold">Blog</h1>
+                  <p className="py-6">This is a blog template.</p>
+                  <button className="btn btn-primary">Get Started</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        } />
+      </Routes>
+    </Router>
+  )
+}
+
+export default App
+`;
+  }
+
+  return template;
 }
 
 main().catch(console.error);
